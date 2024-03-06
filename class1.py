@@ -1,0 +1,351 @@
+import time, math
+
+import requests
+
+#----------------------CSRF Token in case if necessary-------------#
+#laravel_url = "127.0.0.1:80"
+## Send GET request to retrieve CSRF token
+#response = requests.get(f"{laravel_url}/sanctum/csrf-cookie")
+
+## Extract CSRF token from the response cookies
+#csrf_token = response.cookies.get("XSRF-TOKEN")
+
+## Include the CSRF token in your subsequent POST request
+#headers = {
+#    "X-XSRF-TOKEN": csrf_token,
+#    "Content-Type": "application/json",  # Adjust the Content-Type header if necessary
+#}
+#----------------------CSRF Token-------------#
+
+
+class InitialPass:
+
+    # Define a helper function to handle null values
+    def handle_null(self, value):
+        if value is None or value == "":
+             return 0
+        return value
+
+    #This function will initalise a start when it detects phy_start = 1 from parameter stuff table
+    def startingUP(self):
+
+        # Define the API endpoint URLs
+        api_readBMS = 'http://127.0.0.1:80/AWS'
+        api_readChar = 'http://127.0.0.1:80/AWSchar'
+        api_parameter = 'http://127.0.0.1:80/paraLatest'
+        api_table = 'http://127.0.0.1:80/tableLatestRow'
+        api_url = 'http://127.0.0.1:80/storeBC'
+        api_inpwr = 'http://192.168.1.180/get_modbus_data_from?device_id=1&register=14'
+        api_outpwr = 'http://192.168.1.180/get_modbus_data_from?device_id=2&register=2'
+
+        try:
+            # Make a GET request to the API
+            BMS_response = requests.get(api_readBMS)
+            Charger_response = requests.get(api_readChar)
+            paraStuff_response = requests.get(api_parameter)
+            table_response = requests.get(api_table)
+            input_pwr = requests.get(api_inpwr, timeout=10)
+            output_pwr = requests.get(api_outpwr, timeout=10)
+            
+
+            # Check the response status code
+            if BMS_response.status_code == 200 and Charger_response.status_code == 200:
+                # Request was successful
+                data = BMS_response.json()
+                data2 = Charger_response.json()
+                data3 = paraStuff_response.json()
+                data4 = table_response.json()
+                #print(input_pwr.text)
+                if input_pwr.text[:5] != "Error" :
+                    data5 = input_pwr.json()
+                    data6 = output_pwr.json()
+                else:
+                    data5 = 0
+                    data6 = 0
+
+                # Create the payload dictionary
+                payload = {
+                    'capacity': self.handle_null(data['data']['capacity']),
+                    'status': self.handle_null(data['data']['status']),
+                    'mos_charge': self.handle_null(data['data']['mos_charge']),
+                    'mos_discharge': self.handle_null(data['data']['mos_discharge']),
+                    'volt': self.handle_null(data['data']['volt']),
+                    'curr': self.handle_null(data['data']['curr']),
+                    'temp': self.handle_null(data['data']['temp']),
+                    'voltagex': self.handle_null(data2['data']['voltagex']),
+                    'currentx': self.handle_null(data2['data']['currentx']),
+                    'voltage': self.handle_null(data2['data']['voltage']),
+                    'temperature': self.handle_null(data2['data']['temperature']),
+                    'current': self.handle_null(data2['data']['current']),
+                    'expID': self.handle_null(data4['ExpID']),
+                    'inputPWR': self.handle_null(data5),
+                    'outputPWR': self.handle_null(data6),
+                    'SOC_min': self.handle_null(data3['rangeSOC_min']),
+                    'SOC_max': self.handle_null(data3['rangeSOC_max']),
+                    'SOC_trickling': self.handle_null(data3['trickling']),
+                    'temp_max': self.handle_null(data3['hotness']),
+                }
+
+                # Make a POST request to store the data
+                table3_response = requests.post(api_url, json=payload)
+
+                # Check the response status code
+                if table3_response.status_code == 200:
+                    # Request was successful
+                    print("Data stored successfully.")
+                else:
+                    # Request failed
+                    print("Failed to store data.")
+                    print(table3_response.status_code)
+            else:
+                # Request failed
+                print("Failed to retrieve data from the API.")
+
+        except requests.exceptions.Timeout:
+
+             # Make a GET request to the API
+            BMS_response = requests.get(api_readBMS)
+            Charger_response = requests.get(api_readChar)
+            paraStuff_response = requests.get(api_parameter)
+            table_response = requests.get(api_table)
+
+            if BMS_response.status_code == 200 and Charger_response.status_code == 200:
+                # Request was successful
+                data = BMS_response.json()
+                data2 = Charger_response.json()
+                data3 = paraStuff_response.json()
+                data4 = table_response.json()
+
+                
+            # API request timed out, set default values to '0'
+            print("In/out pwr API connection timed out. Setting default values to '0'.")
+            payload = {
+                'capacity': self.handle_null(data['data']['capacity']),
+                'status': self.handle_null(data['data']['status']),
+                'mos_charge': self.handle_null(data['data']['mos_charge']),
+                'mos_discharge': self.handle_null(data['data']['mos_discharge']),
+                'volt': self.handle_null(data['data']['volt']),
+                'curr': self.handle_null(data['data']['curr']),
+                'temp': self.handle_null(data['data']['temp']),
+                'voltagex': self.handle_null(data2['data']['voltagex']),
+                'currentx': self.handle_null(data2['data']['currentx']),
+                'voltage': self.handle_null(data2['data']['voltage']),
+                'temperature': self.handle_null(data2['data']['temperature']),
+                'current': self.handle_null(data2['data']['current']),
+                'expID': self.handle_null(data4['ExpID']),
+                'inputPWR': 0,
+                'outputPWR': 0,
+                'SOC_min': self.handle_null(data3['rangeSOC_min']),
+                'SOC_max': self.handle_null(data3['rangeSOC_max']),
+                'SOC_trickling': self.handle_null(data3['trickling']),
+                'temp_max': self.handle_null(data3['hotness']),
+            }
+
+            # Make a POST request to store the data
+            table3_response = requests.post(api_url, json=payload)
+
+            # Check the response status code
+            if table3_response.status_code == 200:
+                # Request was successful
+                print("Data stored successfully with default values.")
+            else:
+                # Request failed
+                print("Failed to store data with default values.")
+                print(table3_response.status_code)
+
+    #This function always run before def running, to check if temperature, minimal SOC and trickling values met
+    def error_check(self):
+       
+
+            api_readChar = 'http://127.0.0.1:80/AWSchar'
+            api_parameter = 'http://127.0.0.1:80/paraLatest'
+            api_readBMS = 'http://127.0.0.1:80/AWS'
+            api_updateExpStatus = 'http://127.0.0.1:80/updateExpStatus' 
+
+
+            #need to change to read the latest line of th barchart iot table, since running will read from API
+            temperature = requests.get(api_readBMS).json()['data']['temp']
+            temp_high = requests.get(api_parameter).json()['hotness']
+            SOC_min = requests.get(api_parameter).json()['rangeSOC_min']
+            SOC_max = requests.get(api_parameter).json()['rangeSOC_max']
+            trickling = requests.get(api_parameter).json()['trickling']
+            capacity = requests.get(api_readBMS).json()['data']['capacity']
+            
+            # for debugging
+            BMS_response = requests.get(api_readBMS)
+            print("BMS Response:", BMS_response.text)
+            
+            tricklingRef = SOC_max - trickling
+
+            if capacity < SOC_min:
+                change = requests.post(api_updateExpStatus, json={'newExpStatus': 5})
+                print("Baseline problem, SOC lower than minimum set point")
+                
+            elif temperature >= temp_high:
+                change = requests.post(api_updateExpStatus, json={'newExpStatus': 4})
+                print("Warning Temp high")
+                
+            elif capacity >= tricklingRef and capacity != SOC_max:
+                change = requests.post(api_updateExpStatus, json={'newExpStatus': 3})
+                print("trickling SOC level")
+               
+            else:
+                print("Error checked no problem")
+
+
+    #This function will run once and change value of phy_status to 1 and expStatus to 2 if error else 0
+    def starting_BC_check(self):
+        api_readChar = 'http://127.0.0.1:80/BCLatestRowall'
+        api_updateExpStatus = 'http://127.0.0.1:80/updateExpStatus'   
+        api_readAWSBMS = 'http://127.0.0.1:80/AWS'
+        api_readAWSCharger = 'http://127.0.0.1:80/AWSchar'
+        api_switch_voltagex = 'http://127.0.0.1:80/injectv'
+        api_table_expID = 'http://127.0.0.1:80/tableLatestRow'
+
+
+        # API to reading
+        last_row_table = requests.get(api_table_expID)
+        last_row_bar = requests.get(api_readChar)
+        readAWSBMS = requests.get(api_readAWSBMS)
+        #print( readAWSBMS.json() )
+        ExpID = last_row_bar.json()['ExpID']
+        disOn = 0
+        disOff = 0
+
+        if (last_row_table.json()['ExpID'] == ExpID):
+            
+            mos_charge = last_row_bar.json()['mos_charge']
+            mos_discharge = last_row_bar.json()['mos_discharge']
+
+            if mos_charge == 0:
+                # Trigger the /chargeAllow API
+                response = requests.get("http://127.0.0.1:80/charBMS")
+                disOn = 2
+                print("chargeAllow triggered")
+
+            elif mos_discharge == 0:
+                # Trigger the /dischargeAllow API
+                response = requests.get("http://127.0.0.1:80/discharBMS")
+                print("dischargeAllow triggered")
+                disOn += 1
+
+            else:
+                # Trigger the /dischargeAllow to switch off API
+                response = requests.get("http://127.0.0.1:80/discharBMS")
+                print("dischargeStop triggered")
+                disOff += 1
+
+            # Allow 30 seconds, 2 tries for feedback
+            for i in range(2):
+                time.sleep(30)
+                readBMS = requests.get(api_readAWSBMS)
+
+                if disOn == 2 and readBMS.json()['data']['mos_charge'] == 1:
+                    # Feedback received successfully
+                    print("Charge response successful on")
+                    break
+                elif disOn == 1 and readBMS.json()['data']['mos_discharge'] == 1:
+                    print("Discharge response successful on")
+                    break
+                elif disOff == 1 and readBMS.json()['data']['mos_discharge'] == 0:
+                    print("Discharge off success response")
+                    break
+                else:
+                    # Modify expstatus to 2 on the latest code
+                    print("BMS response failed")
+                    if i == 1:
+                        check = requests.post(api_updateExpStatus, json={'newExpStatus': 2})
+                        print("Update ExpStatus to 2 BMS")
+                        return # break out of function if the ExpID changes
+
+            readBMSnew = requests.get(api_readAWSBMS)
+            if readBMSnew.json()['data']['mos_charge'] == 1:
+                response = requests.get("http://127.0.0.1:80/charBMS")
+                time.sleep(30)
+
+            readAWSChar = requests.get(api_readAWSCharger)
+            print( readAWSChar.json() )
+
+            # Read bar_chart_IOT voltage
+            voltage = readAWSChar.json()['data']['voltage']
+            voltage_test = round(voltage + 1)
+            print("injecting voltage is  " +  str(voltage_test))
+            # Inject voltage_test to voltagex
+            response = requests.post(api_switch_voltagex, json={'v': voltage_test})
+
+            # Allow 30 seconds, 2 tries for feedback
+            for i in range(2):
+                time.sleep(30)
+                voltage = requests.get(api_readAWSCharger).json()['data']['voltage']
+                rndVoltage = round(voltage)
+                if rndVoltage == voltage_test:
+                    # Feedback received successfully
+                    print("successfully injected")
+                    response = requests.get("http://127.0.0.1:80/charBMS")
+                    time.sleep(30)
+                    return
+                else:
+                    print("Charger voltage injection failed")
+                    if i == 1:
+                        requests.post(api_updateExpStatus, json={'newExpStatus': 2})
+                        print("Update ExpStatus to 2 Charger")
+                        return # break out of function if the ExpID changes
+ 
+
+    def running(self):
+        api_readBMS = 'http://127.0.0.1:80/AWS'
+        api_readChar = 'http://127.0.0.1:80/AWSchar'
+        api_table = 'http://127.0.0.1:80/wholeTable'
+        api_read_BClastRow = 'http://127.0.0.1:80/BCLatestRowall'
+        api_switch_voltagex = 'http://127.0.0.1:80/injectv'
+        api_switch_currentx = 'http://127.0.0.1:80/injectc'
+        api_parameter = 'http://127.0.0.1:80/paraLatest'
+
+        BMS = requests.get(api_readBMS).json()
+        charger = requests.get(api_readChar).json()
+        BC_response = requests.get(api_read_BClastRow)
+        expStatus = BC_response.json()['expStatus']
+        expID = BC_response.json()['ExpID']
+        SOC_max = requests.get(api_parameter).json()['rangeSOC_max']
+        
+        readTable = requests.get(api_table).json()
+        
+        # Call the running() method if expstatus is not 3, or 4 or 5
+  
+        if expStatus not in [ 3, 4, 5]:
+            #look at table
+            SOC_now = math.floor(BMS['data']['capacity'])
+            for entry in readTable:
+                if entry['x'] == SOC_now and entry['ExpID'] == expID and SOC_now != SOC_max :
+                    y = entry['y']
+                    y2 = entry['y2']
+                    requests.post(api_switch_voltagex, json={'v': y});
+                    requests.post(api_switch_currentx, json={'c': y2});
+                elif entry['x'] == SOC_now and entry['ExpID'] == expID and SOC_now == SOC_max:
+                    requests.post(api_switch_currentx, json={'c': 0});
+
+            print("function can proceed")
+
+        elif expStatus == 3:
+            #go on trickling state
+            voltage_now = BMS['data']['volt']
+            voltage_setting = charger['data']['voltagex']
+            voltage_check = voltage_now + 0.5
+            if voltage_check < voltage_setting:
+                requests.post(api_switch_voltagex, json={'v': voltage_check });
+            requests.post(api_switch_currentx, json={'c': 10 });
+
+            print("trickling state")
+        elif expStatus == 4:
+            voltage_setting = charger['data']['voltagex']
+            requests.post(api_switch_voltagex, json={'v': voltage_setting });
+            requests.post(api_switch_currentx, json={'c': 10 });
+            print("Temp high protection")
+
+        elif expStatus == 5:
+            print("Input error please check")
+         
+
+
+            
+            
